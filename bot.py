@@ -56,6 +56,7 @@ class KrillionBot(discord.Client):
         # Held while reading channel history, so live messages don't move the
         # catch-up checkpoint past messages that haven't been read yet.
         self.reading_history = asyncio.Lock()
+        self.posting_results = asyncio.Lock()
 
     async def setup_hook(self) -> None:
         self.daily_results.start()
@@ -65,6 +66,11 @@ class KrillionBot(discord.Client):
         for guild in self.guilds:
             await self.sync_commands(guild)
         await self.catch_up()
+        await self.post_due_results()
+
+    async def on_resumed(self) -> None:
+        # Back after a dropped connection or the PC waking up: results may be overdue.
+        await self.post_due_results()
 
     async def on_guild_join(self, guild: discord.Guild) -> None:
         await self.sync_commands(guild)
@@ -161,24 +167,41 @@ class KrillionBot(discord.Client):
 
     @tasks.loop(time=RESULTS_TIME)
     async def daily_results(self) -> None:
-        # The day that just ended: a midnight or morning post covers yesterday.
-        day = (dt.datetime.now(TZ) - dt.timedelta(hours=12)).date()
-        for watch in self.store.watches():
-            try:
-                await self.post_results(watch["guild_id"], watch["channel_id"], day)
-            except Exception:
-                log.exception("Couldn't post daily results for server %s", watch["guild_id"])
+        await self.post_due_results()
 
     @daily_results.before_loop
     async def before_daily_results(self) -> None:
         await self.wait_until_ready()
 
-    async def post_results(self, guild_id: int, channel_id: int, day: dt.date) -> int | None:
-        """Post the final standings for the puzzle most people played on `day`."""
+    async def post_due_results(self, now: dt.datetime | None = None) -> None:
+        """Post the final results that were due at the latest results time, unless
+        they're already out. Runs on schedule and whenever the bot (re)connects, so
+        a bot that was off or asleep at midnight posts them late instead of never."""
+        # A minute of slack in case the timer fires a moment early.
+        day = results_day((now or dt.datetime.now(TZ)) + dt.timedelta(minutes=1))
+        async with self.posting_results:
+            for watch in self.store.watches():
+                try:
+                    await self.post_results(watch["guild_id"], watch["channel_id"], day)
+                except Exception:
+                    log.exception("Couldn't post daily results for server %s", watch["guild_id"])
+
+    def results_puzzle(self, guild_id: int, day: dt.date) -> int | None:
         since = dt.datetime.combine(day - dt.timedelta(days=1), dt.time(), TZ)
         rows = self.store.scores_posted_after(
             guild_id, since.astimezone(dt.timezone.utc).isoformat(timespec="seconds"))
-        puzzle = boards.puzzle_for_day(rows, day, TZ)
+        return boards.puzzle_for_day(rows, day, TZ)
+
+    def skip_past_results(self, guild_id: int, now: dt.datetime | None = None) -> None:
+        """Results that were due before the bot watched the channel aren't owed,
+        so a fresh history import doesn't trigger a stale results post."""
+        puzzle = self.results_puzzle(guild_id, results_day(now or dt.datetime.now(TZ)))
+        if puzzle is not None:
+            self.store.mark_results_posted(guild_id, puzzle)
+
+    async def post_results(self, guild_id: int, channel_id: int, day: dt.date) -> int | None:
+        """Post the final standings for the puzzle most people played on `day`."""
+        puzzle = self.results_puzzle(guild_id, day)
         if puzzle is None or self.store.results_posted(guild_id, puzzle):
             return None
         channel = self.get_channel(channel_id)
@@ -201,6 +224,15 @@ class KrillionBot(discord.Client):
             await message.remove_reaction("✅", self.user)
         except discord.HTTPException:
             pass
+
+
+def results_day(now: dt.datetime) -> dt.date:
+    """The day covered by the latest results time at or before `now`. Results at
+    midnight cover the day that just ended; a morning time still covers yesterday."""
+    due = dt.datetime.combine(now.astimezone(TZ).date(), RESULTS_TIME)
+    if now < due:
+        due -= dt.timedelta(days=1)
+    return (due - dt.timedelta(hours=12)).date()
 
 
 def missing_permissions(channel: discord.TextChannel) -> list[str]:
@@ -281,6 +313,7 @@ class Admin(app_commands.Group, name="krillion", description="krillionDbot setti
         async with bot.reading_history:
             bot.store.set_channel(channel.guild.id, channel.id)
             counts = await bot.import_history(channel, after=None, react=False)
+        bot.skip_past_results(channel.guild.id)
         await interaction.followup.send(f"🦐 Now watching {channel.mention}. {import_summary(counts)}")
 
     @app_commands.command(description="Delete a player's score for one puzzle")
@@ -327,11 +360,30 @@ async def command_error(interaction: discord.Interaction, error: app_commands.Ap
         pass
 
 
+def hold_single_instance_lock(path: Path):
+    """Exit if another copy of the bot is already running on this PC. Two copies
+    would both post the daily results. Keep the returned file open while running."""
+    handle = open(path, "a+")
+    try:
+        handle.seek(0)
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        handle.close()
+        raise SystemExit("krillionDbot is already running on this PC. Look for its window on the taskbar.")
+    return handle
+
+
 def main() -> None:
     if not TOKEN or TOKEN == TOKEN_PLACEHOLDER:
         raise SystemExit("No bot token yet: open .env in Notepad, paste the token after DISCORD_TOKEN=, "
                          "save, and start the bot again. See README.md.")
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    lock = hold_single_instance_lock(DB_PATH.parent / "bot.lock")  # noqa: F841 (held until exit)
     discord.utils.setup_logging(root=True)
     log.info("Scores database: %s", DB_PATH)
     try:

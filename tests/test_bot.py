@@ -138,6 +138,54 @@ class ResultsTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await client.post_results(GUILD, CHANNEL, dt.date(2026, 10, 12)))
         self.assertEqual(channel.send.await_count, 1)
 
+    async def make_day(self):
+        """A bot watching CHANNEL with #90 played on the evening of Oct 12 (ET)."""
+        client = bot.KrillionBot(Store(":memory:"))
+        client.store.set_channel(GUILD, CHANNEL)
+        evening = dt.datetime(2026, 10, 12, 23, 0, tzinfo=dt.timezone.utc)
+        await client.take(message(share(90, 225, ""), 1, "p1", when=evening), live=False, react=False)
+        channel = fake_channel()
+        client.get_channel = lambda _id: channel
+        return client, channel
+
+    async def test_missed_midnight_is_posted_on_restart(self):
+        client, channel = await self.make_day()
+        await client.post_due_results(now=dt.datetime(2026, 10, 12, 22, 0, tzinfo=bot.TZ))
+        self.assertEqual(channel.send.await_count, 0)  # Oct 12 isn't over yet
+        await client.post_due_results(now=dt.datetime(2026, 10, 13, 9, 30, tzinfo=bot.TZ))
+        self.assertEqual(channel.send.await_count, 1)  # bot was off at midnight: posted on startup
+        await client.post_due_results(now=dt.datetime(2026, 10, 13, 9, 45, tzinfo=bot.TZ))
+        self.assertEqual(channel.send.await_count, 1)  # reconnecting again doesn't repeat it
+
+    async def test_new_channel_doesnt_owe_old_results(self):
+        client, channel = await self.make_day()
+        morning = dt.datetime(2026, 10, 13, 9, 30, tzinfo=bot.TZ)
+        client.skip_past_results(GUILD, now=morning)  # what /krillion setchannel does
+        await client.post_due_results(now=morning)
+        self.assertEqual(channel.send.await_count, 0)
+
+
+class ResultsDayTests(unittest.TestCase):
+    def test_midnight_results_cover_the_day_that_ended(self):
+        et = bot.TZ
+        self.assertEqual(bot.results_day(dt.datetime(2026, 10, 13, 0, 0, tzinfo=et)), dt.date(2026, 10, 12))
+        self.assertEqual(bot.results_day(dt.datetime(2026, 10, 13, 15, 0, tzinfo=et)), dt.date(2026, 10, 12))
+        self.assertEqual(bot.results_day(dt.datetime(2026, 10, 13, 23, 59, tzinfo=et)), dt.date(2026, 10, 12))
+        self.assertEqual(bot.results_day(dt.datetime(2026, 10, 14, 4, 0, tzinfo=dt.timezone.utc)),
+                         dt.date(2026, 10, 13))  # midnight ET in UTC
+
+
+class SingleInstanceTests(unittest.TestCase):
+    def test_second_copy_is_refused(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            lock = bot.hold_single_instance_lock(Path(tmp) / "bot.lock")
+            with self.assertRaises(SystemExit):
+                bot.hold_single_instance_lock(Path(tmp) / "bot.lock")
+            lock.close()
+            bot.hold_single_instance_lock(Path(tmp) / "bot.lock").close()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -20,7 +20,8 @@ Krillion #90 🦐
   `krillion/parsing.py`).
 - **A "day" is a puzzle number**, so #90's board is everyone's #90 scores, whenever they posted.
 - **Announces only big moments**: someone takes the lead on today's puzzle, matches the all-time record, or breaks it.
-- **Final results** for the day's puzzle go out every night at midnight Eastern time.
+- **Final results** for the day's puzzle go out every night at midnight Eastern time. If the bot was off or the PC
+  was asleep at midnight, they go out as soon as it's back.
 - **Catches up.** On the first `/krillion setchannel` it imports the channel's whole history (no reactions).
   After every restart it reads anything posted while it was offline and reacts to those.
 
@@ -61,6 +62,21 @@ You need a Windows PC with **Python 3.11 or newer** (https://www.python.org/down
 8. **Point it at the channel.** In the Krillion channel, type `/krillion setchannel`. It imports the old scores and
    says how many it found.
 
+### Start it automatically with Windows (optional)
+
+So you don't have to double-click `run_bot.bat` after every restart, run this once in PowerShell, from the bot's
+folder:
+
+```
+powershell -ExecutionPolicy Bypass -File install_autostart.ps1
+```
+
+From then on the bot starts by itself in a minimized window a few seconds after you log in to Windows. If it ever
+stops (a crash, or no internet yet), it restarts 30 seconds later. Closing that window stops it until the next
+login. To undo the auto-start, run the same command with `-Remove` on the end.
+
+Only one copy of the bot can run at a time, so double-clicking `run_bot.bat` while it's already running just says so.
+
 The token is the bot's password. Never post it anywhere and never commit `.env`. If it leaks, click **Reset Token**
 and paste the new one into `.env`.
 
@@ -73,8 +89,9 @@ run `.venv/bin/python bot.py`.
 - **"Discord rejected the token"**: reset the token on the Bot tab and paste the new one into `.env`.
 - **"Turn on Message Content Intent"**: see step 3, then start the bot again.
 - **Slash commands don't show up**: give it a minute, then press Ctrl+R in Discord to reload.
-- **Bot shows offline**: the `run_bot.bat` window has to stay open and the PC has to stay on. When it starts again,
-  it catches up on any scores posted while it was off.
+- **Bot shows offline**: the bot's window has to stay open and the PC has to stay on. When it starts again, it
+  catches up on any scores posted while it was off, plus any final results it missed.
+- **"krillionDbot is already running on this PC"**: it's already on. Look for its window on the taskbar.
 
 ## Settings (`.env`)
 
