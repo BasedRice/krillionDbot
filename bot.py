@@ -329,7 +329,8 @@ async def command_error(interaction: discord.Interaction, error: app_commands.Ap
 
 def main() -> None:
     if not TOKEN or TOKEN == TOKEN_PLACEHOLDER:
-        raise SystemExit("No bot token yet: open .env and paste it after DISCORD_TOKEN= (README.md, step 2).")
+        raise SystemExit("No bot token yet: open .env in Notepad, paste the token after DISCORD_TOKEN=, "
+                         "save, and start the bot again. See README.md.")
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     discord.utils.setup_logging(root=True)
     log.info("Scores database: %s", DB_PATH)

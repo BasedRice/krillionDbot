@@ -20,7 +20,7 @@ Krillion #90 🦐
   `krillion/parsing.py`).
 - **A "day" is a puzzle number**, so #90's board is everyone's #90 scores, whenever they posted.
 - **Announces only big moments**: someone takes the lead on today's puzzle, matches the all-time record, or breaks it.
-- **Final results** for the day's puzzle go out once a day at `RESULTS_TIME`.
+- **Final results** for the day's puzzle go out every night at midnight Eastern time.
 - **Catches up.** On the first `/krillion setchannel` it imports the channel's whole history (no reactions).
   After every restart it reads anything posted while it was offline and reacts to those.
 
@@ -37,21 +37,44 @@ Krillion #90 🦐
 
 ## Setup
 
-You need the **Manage Server** permission on your Discord server.
+You need a Windows PC with **Python 3.11 or newer** (https://www.python.org/downloads/). In the installer, tick
+**Add python.exe to PATH**. To invite the bot, you or the server owner needs the **Manage Server** permission.
 
-1. **Create the bot.** Go to https://discord.com/developers/applications, click **New Application**, and name it.
-2. **Get the token.** Open the **Bot** tab, click **Reset Token**, copy it, and paste it into `.env` after
-   `DISCORD_TOKEN=`. The token is the bot's password. Never paste it in Discord or commit it. If it leaks, reset it.
-3. **Turn on Message Content Intent.** It's on the same Bot tab, under *Privileged Gateway Intents*. Without it the
-   bot can't read scores. Optional: turn off **Public Bot** so only you can add it. If Discord won't allow that,
-   first set **Installation → Install Link** to *None*.
-4. **Make the invite link.** Go to **OAuth2 → URL Generator**:
+1. **Get the code.** Run `git clone https://github.com/BasedRice/krillionDbot.git`, or on GitHub use
+   **Code → Download ZIP** and unzip it.
+2. **Create the bot.** Go to https://discord.com/developers/applications, click **New Application**, and name it.
+3. **Get the token and turn on Message Content Intent.** On the **Bot** tab, click **Reset Token** and copy the
+   token. Lower on the same tab, under *Privileged Gateway Intents*, turn on **Message Content Intent** and save.
+   Without it the bot can't read scores.
+4. **Invite it.** Go to **OAuth2 → URL Generator**:
    - Scopes: `bot` and `applications.commands`
    - Bot permissions: View Channels, Send Messages, Read Message History, Add Reactions, Embed Links
-5. **Invite it.** Open the generated URL, pick your server, and click **Authorize**.
-6. **Start it.** Double-click `run_bot.bat`. The first run sets up `.venv` and installs the packages. Keep the
-   window open while the bot runs.
-7. **Point it at the channel.** In your Krillion channel, type `/krillion setchannel`.
+
+   Open the generated URL, pick your server, and click **Authorize**. If you don't have Manage Server, send the URL
+   to someone who does.
+5. **First start.** Double-click `run_bot.bat`. It installs what it needs (about a minute), creates a `.env` file,
+   and stops with "No bot token yet".
+6. **Add the token.** Open `.env` in Notepad, paste the token after `DISCORD_TOKEN=`, and save. Leave the other
+   settings alone: final results go out at midnight Eastern time wherever the PC is.
+7. **Start it for real.** Double-click `run_bot.bat` again and wait for `Logged in as ...`. Keep the window open:
+   closing it stops the bot.
+8. **Point it at the channel.** In the Krillion channel, type `/krillion setchannel`. It imports the old scores and
+   says how many it found.
+
+The token is the bot's password. Never post it anywhere and never commit `.env`. If it leaks, click **Reset Token**
+and paste the new one into `.env`.
+
+On Mac or Linux, run these commands instead of `run_bot.bat`:
+`python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && cp .env.example .env`, edit `.env`, and then
+run `.venv/bin/python bot.py`.
+
+### Troubleshooting
+
+- **"Discord rejected the token"**: reset the token on the Bot tab and paste the new one into `.env`.
+- **"Turn on Message Content Intent"**: see step 3, then start the bot again.
+- **Slash commands don't show up**: give it a minute, then press Ctrl+R in Discord to reload.
+- **Bot shows offline**: the `run_bot.bat` window has to stay open and the PC has to stay on. When it starts again,
+  it catches up on any scores posted while it was off.
 
 ## Settings (`.env`)
 
