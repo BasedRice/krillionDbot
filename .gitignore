@@ -1,0 +1,8 @@
+# Secrets: never commit or share
+.env
+
+.venv/
+__pycache__/
+*.pyc
+*.db
+logs/
