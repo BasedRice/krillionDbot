@@ -2,7 +2,7 @@ import datetime as dt
 import itertools
 import unittest
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 
@@ -173,6 +173,24 @@ class ResultsDayTests(unittest.TestCase):
         self.assertEqual(bot.results_day(dt.datetime(2026, 10, 13, 23, 59, tzinfo=et)), dt.date(2026, 10, 12))
         self.assertEqual(bot.results_day(dt.datetime(2026, 10, 14, 4, 0, tzinfo=dt.timezone.utc)),
                          dt.date(2026, 10, 13))  # midnight ET in UTC
+
+
+class LocalAddonTests(unittest.TestCase):
+    def test_addon_can_add_to_leaderboards(self):
+        addon = SimpleNamespace(decorate_leaderboard=lambda embed: embed.add_field(name="extra", value="hi"))
+        with patch.object(bot, "local_addons", addon):
+            embed = bot.finish_leaderboard(discord.Embed(title="board"))
+        self.assertEqual([f.name for f in embed.fields], ["extra"])
+
+    def test_no_addon_or_a_broken_one_still_posts(self):
+        with patch.object(bot, "local_addons", None):
+            self.assertEqual(bot.finish_leaderboard(discord.Embed(title="board")).fields, [])
+
+        def broken(embed):
+            raise ValueError("oops")
+        with patch.object(bot, "local_addons", SimpleNamespace(decorate_leaderboard=broken)), \
+                self.assertLogs("krillion", level="ERROR"):
+            self.assertEqual(bot.finish_leaderboard(discord.Embed(title="board")).title, "board")
 
 
 class SingleInstanceTests(unittest.TestCase):

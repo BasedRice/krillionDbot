@@ -21,6 +21,15 @@ from krillion import boards
 from krillion.parsing import check_score, parse_share, unknown_tiles
 from krillion.storage import Store
 
+# Optional per-PC customization: a local_addons.py next to this file (kept out of git)
+# can define decorate_leaderboard(embed) to add to every leaderboard post.
+try:
+    import local_addons
+except ModuleNotFoundError as e:
+    if e.name != "local_addons":
+        raise
+    local_addons = None
+
 load_dotenv(Path(__file__).with_name(".env"))
 
 TOKEN = os.getenv("DISCORD_TOKEN", "").strip()
@@ -212,7 +221,8 @@ class KrillionBot(discord.Client):
             log.warning("Can't see channel %s to post results for #%s", channel_id, puzzle)
             return None
         scores = self.store.puzzle_scores(guild_id, puzzle)
-        await channel.send(embed=boards.leaderboard_embed(puzzle, scores, self.store.record(guild_id), final=True))
+        embed = boards.leaderboard_embed(puzzle, scores, self.store.record(guild_id), final=True)
+        await channel.send(embed=finish_leaderboard(embed))
         self.store.mark_results_posted(guild_id, puzzle)
         log.info("Posted final results for Krillion #%s in #%s", puzzle, channel)
         return puzzle
@@ -236,6 +246,17 @@ def results_day(now: dt.datetime) -> dt.date:
     if now < due:
         due -= dt.timedelta(days=1)
     return (due - dt.timedelta(hours=12)).date()
+
+
+def finish_leaderboard(embed: discord.Embed) -> discord.Embed:
+    """Let the optional local add-on add to a leaderboard post."""
+    hook = getattr(local_addons, "decorate_leaderboard", None)
+    if hook is not None:
+        try:
+            hook(embed)
+        except Exception:
+            log.exception("local_addons.decorate_leaderboard failed; posting without it")
+    return embed
 
 
 def missing_permissions(channel: discord.TextChannel) -> list[str]:
@@ -265,7 +286,7 @@ async def leaderboard(interaction: discord.Interaction, puzzle: Optional[app_com
         await interaction.response.send_message(text, ephemeral=True)
         return
     embed = boards.leaderboard_embed(puzzle, rows, store.record(interaction.guild_id))
-    await interaction.response.send_message(embed=embed)
+    await interaction.response.send_message(embed=finish_leaderboard(embed))
 
 
 @app_commands.command(description="All-time Krillion record and top 10 scores")
@@ -275,7 +296,7 @@ async def alltime(interaction: discord.Interaction) -> None:
     if not top:
         await interaction.response.send_message("No Krillion scores yet.", ephemeral=True)
         return
-    await interaction.response.send_message(embed=boards.alltime_embed(top))
+    await interaction.response.send_message(embed=finish_leaderboard(boards.alltime_embed(top)))
 
 
 @app_commands.command(description="A player's Krillion stats")
