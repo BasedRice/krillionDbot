@@ -6,6 +6,7 @@ import asyncio
 import datetime as dt
 import logging
 import os
+import sys
 from collections import Counter
 from pathlib import Path
 from typing import Optional
@@ -29,6 +30,8 @@ RESULTS_TIME = dt.time.fromisoformat(os.getenv("RESULTS_TIME") or "00:00").repla
 VERIFY_SCORES = (os.getenv("VERIFY_SCORES") or "true").strip().lower() not in {"0", "false", "no", "off"}
 # Kept outside OneDrive by default: OneDrive syncing a half-written database can corrupt it.
 DB_PATH = Path(os.getenv("DB_PATH") or Path(os.getenv("LOCALAPPDATA") or Path.home()) / "krillionDbot" / "krillion.db")
+LOCK_PATH = DB_PATH.parent / "bot.lock"
+ALREADY_RUNNING = 3  # exit code when another copy of the bot holds the lock
 
 # What the bot needs in the watched channel, with the names Discord shows.
 NEEDED_PERMISSIONS = {
@@ -360,9 +363,10 @@ async def command_error(interaction: discord.Interaction, error: app_commands.Ap
         pass
 
 
-def hold_single_instance_lock(path: Path):
-    """Exit if another copy of the bot is already running on this PC. Two copies
-    would both post the daily results. Keep the returned file open while running."""
+def single_instance_lock(path: Path):
+    """Take the one-copy-per-PC lock (two copies would both post the daily results).
+    Returns the open lock file, to keep open while running, or None if another
+    copy already has it."""
     handle = open(path, "a+")
     try:
         handle.seek(0)
@@ -374,7 +378,7 @@ def hold_single_instance_lock(path: Path):
             fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
         handle.close()
-        raise SystemExit("krillionDbot is already running on this PC. Look for its window on the taskbar.")
+        return None
     return handle
 
 
@@ -383,7 +387,11 @@ def main() -> None:
         raise SystemExit("No bot token yet: open .env in Notepad, paste the token after DISCORD_TOKEN=, "
                          "save, and start the bot again. See README.md.")
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    lock = hold_single_instance_lock(DB_PATH.parent / "bot.lock")  # noqa: F841 (held until exit)
+    lock = single_instance_lock(LOCK_PATH)  # held until the bot exits
+    if lock is None:
+        print("krillionDbot is already running on this PC (in the background, or in another window).",
+              file=sys.stderr)
+        raise SystemExit(ALREADY_RUNNING)
     discord.utils.setup_logging(root=True)
     log.info("Scores database: %s", DB_PATH)
     try:

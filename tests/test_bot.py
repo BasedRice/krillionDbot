@@ -180,11 +180,11 @@ class SingleInstanceTests(unittest.TestCase):
         import tempfile
         from pathlib import Path
         with tempfile.TemporaryDirectory() as tmp:
-            lock = bot.hold_single_instance_lock(Path(tmp) / "bot.lock")
-            with self.assertRaises(SystemExit):
-                bot.hold_single_instance_lock(Path(tmp) / "bot.lock")
+            lock = bot.single_instance_lock(Path(tmp) / "bot.lock")
+            self.assertIsNotNone(lock)
+            self.assertIsNone(bot.single_instance_lock(Path(tmp) / "bot.lock"))
             lock.close()
-            bot.hold_single_instance_lock(Path(tmp) / "bot.lock").close()
+            bot.single_instance_lock(Path(tmp) / "bot.lock").close()
 
 
 if __name__ == "__main__":

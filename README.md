@@ -57,25 +57,31 @@ You need a Windows PC with **Python 3.11 or newer** (https://www.python.org/down
    and stops with "No bot token yet".
 6. **Add the token.** Open `.env` in Notepad, paste the token after `DISCORD_TOKEN=`, and save. Leave the other
    settings alone: final results go out at midnight Eastern time wherever the PC is.
-7. **Start it for real.** Double-click `run_bot.bat` again and wait for `Logged in as ...`. Keep the window open:
-   closing it stops the bot.
+7. **Start it.** Double-click `start_background.bat`. The bot runs in the background with no window, and the
+   script tells you once it's online, or why it couldn't start.
 8. **Point it at the channel.** In the Krillion channel, type `/krillion setchannel`. It imports the old scores and
    says how many it found.
 
-### Start it automatically with Windows (optional)
+### Running in the background
 
-So you don't have to double-click `run_bot.bat` after every restart, run this once in PowerShell, from the bot's
-folder:
+| File | What it does |
+|---|---|
+| `start_background.bat` | Starts the bot in the background (no window, nothing on the taskbar) |
+| `stop_background.bat` | Stops it |
+| `view_log.bat` | Opens the bot's log in Notepad, to see what it's been doing |
+| `run_bot.bat` | Runs it in a visible window instead, handy for watching it live. Closing the window stops it |
+
+In the background, the bot restarts by itself 30 seconds after it stops (a crash, or no internet yet). Only one copy
+can run at a time, so starting it again while it's running just says so.
+
+**Start it automatically with Windows (optional).** Run this once in PowerShell, from the bot's folder:
 
 ```
 powershell -ExecutionPolicy Bypass -File install_autostart.ps1
 ```
 
-From then on the bot starts by itself in a minimized window a few seconds after you log in to Windows. If it ever
-stops (a crash, or no internet yet), it restarts 30 seconds later. Closing that window stops it until the next
-login. To undo the auto-start, run the same command with `-Remove` on the end.
-
-Only one copy of the bot can run at a time, so double-clicking `run_bot.bat` while it's already running just says so.
+From then on the bot starts in the background by itself about 20 seconds after you log in to Windows. To undo it,
+run the same command with `-Remove` on the end.
 
 The token is the bot's password. Never post it anywhere and never commit `.env`. If it leaks, click **Reset Token**
 and paste the new one into `.env`.
@@ -89,9 +95,10 @@ run `.venv/bin/python bot.py`.
 - **"Discord rejected the token"**: reset the token on the Bot tab and paste the new one into `.env`.
 - **"Turn on Message Content Intent"**: see step 3, then start the bot again.
 - **Slash commands don't show up**: give it a minute, then press Ctrl+R in Discord to reload.
-- **Bot shows offline**: the bot's window has to stay open and the PC has to stay on. When it starts again, it
-  catches up on any scores posted while it was off, plus any final results it missed.
-- **"krillionDbot is already running on this PC"**: it's already on. Look for its window on the taskbar.
+- **Bot shows offline**: the PC has to be on with you logged in. Run `start_background.bat`; if it can't start, it
+  shows why (`view_log.bat` has the full story). When the bot is back, it catches up on any scores posted while it
+  was off, plus any final results it missed.
+- **"krillionDbot is already running"**: it's already on, in the background or in a `run_bot.bat` window.
 
 ## Settings (`.env`)
 
