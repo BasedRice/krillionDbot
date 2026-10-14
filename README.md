@@ -36,6 +36,26 @@ Krillion #90 🦐
 | `/krillion remove <user> <puzzle>` | Manage Server | Delete a bad or fake score |
 | `/krillion rescan` | Manage Server | Re-read the watched channel's history |
 
+## What's in this repo
+
+| File | What it is |
+|---|---|
+| `bot.py` | The bot itself: reads scores, runs the slash commands, posts the nightly results |
+| `krillion/parsing.py` | Reads a pasted Krillion score and checks it against the emoji row |
+| `krillion/storage.py` | The scores database (SQLite) |
+| `krillion/boards.py` | Builds the leaderboards, stats cards and announcements |
+| `background.py` | Runs the bot with no window and restarts it if it stops |
+| `run_bot.bat` | First-time setup, or runs the bot in a visible window |
+| `start_background.bat` | Starts the bot in the background |
+| `stop_background.bat` | Stops the background bot |
+| `view_log.bat` | Opens the background bot's log |
+| `install_autostart.ps1` | Starts the bot by itself when you log in to Windows |
+| `.env.example` | Settings template. It's copied to `.env`, where your bot token goes |
+| `requirements.txt` | The Python packages the bot needs |
+| `tests/` | Automated tests |
+| `.gitignore` | Keeps secrets (`.env`) and local files out of git |
+| `.gitattributes` | Keeps the `.bat` files in Windows line endings |
+
 ## Setup
 
 You need a Windows PC with **Python 3.11 or newer** (https://www.python.org/downloads/). In the installer, tick
