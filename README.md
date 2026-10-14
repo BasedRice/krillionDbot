@@ -31,7 +31,7 @@ Krillion #90 🦐
 |---|---|---|
 | `/leaderboard [puzzle]` | everyone | Board for the newest puzzle, or any puzzle number |
 | `/alltime` | everyone | All-time record and top 10 scores |
-| `/stats [user]` | everyone | Games, average, best, daily wins, streaks |
+| `/stats [user]` | everyone | Runs, average, best, daily wins, streaks |
 | `/krillion setchannel [channel]` | Manage Server | Watch a channel and import its history |
 | `/krillion remove <user> <puzzle>` | Manage Server | Delete a bad or fake score |
 | `/krillion rescan` | Manage Server | Re-read the watched channel's history |

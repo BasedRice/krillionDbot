@@ -49,6 +49,15 @@ class RankTests(unittest.TestCase):
         self.assertIn("Record: **320** by **AshCat** on #90 (matched by Fire Alarm)", embed.description)
 
 
+class StatsTests(unittest.TestCase):
+    def test_stats_fields(self):
+        rows = [row(1, "AshCat", 300, puzzle=89), row(1, "AshCat", 320, puzzle=90)]
+        fields = {f.name: f.value for f in boards.stats_embed("AshCat", rows, wins=1, latest=90).fields}
+        self.assertEqual(fields["Runs"], "2")
+        self.assertEqual(fields["Best"], "320 (#90)")
+        self.assertEqual(fields["Streak"], "2 days")
+
+
 class StreakTests(unittest.TestCase):
     def test_streaks(self):
         self.assertEqual(boards.streaks([85, 86, 87, 89, 90], latest=90), (2, 3))
